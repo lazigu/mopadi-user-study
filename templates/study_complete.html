@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Study Complete — Thank You{% endblock %}
+
+{% block content %}
+<div class="card card-center">
+  <div class="check-icon" style="color: #2ecc71;">&#10003;</div>
+  <h2>Thank You!</h2>
+  <p>Your annotations have been saved.</p>
+  <p>Expert ID: <strong>{{ expert_id }}</strong></p>
+
+  {% if incomplete %}
+  <div class="info-box" style="border-left:4px solid #e67e22;background:#fff8f0;margin-top:1rem;">
+    <p style="font-weight:600;color:#e67e22;margin:0 0 0.5rem;">&#9888; Some sections are not fully complete:</p>
+    <ul style="margin:0;padding-left:1.2rem;color:#555;line-height:1.8;">
+      {% for s in incomplete %}
+      <li><strong>{{ s.label }}</strong> —
+        {% if not s.t1 %}Task 1 incomplete{% endif %}
+        {% if not s.t1 and not s.t2 %}, {% endif %}
+        {% if not s.t2 %}Task 2 incomplete{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    <p style="margin:0.75rem 0 0;color:#555;">You can still go back and complete them using the sidebar.</p>
+  </div>
+  {% else %}
+  <p class="thank-you-note">
+    Your responses are valuable to this research. Thank you for your time and expertise.
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

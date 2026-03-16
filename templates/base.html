@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}MOPADI User Study{% endblock %}</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="{{ url_for('index') }}" class="site-title-link">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="MOPADI logo" class="site-logo">
+        <span class="site-title">MOPADI User Study</span>
+      </a>
+      {% if session.get('expert_id') and request.endpoint not in ('index', 'study_complete') %}
+        <div class="header-right">
+          <span class="expert-badge">{{ session.expert_id }}</span>
+          <span class="elapsed-timer" id="elapsed-timer" title="Time elapsed since session start">&#128337; 0:00</span>
+          <a href="{{ url_for('index') }}" class="btn-pause" title="Your progress is saved — you can resume later by entering the same ID">
+            &#9646;&#9646; Pause
+          </a>
+        </div>
+        <script>
+          (function() {
+            var startedAt = new Date("{{ session.get('started_at', '') }}");
+            var el = document.getElementById('elapsed-timer');
+            if (isNaN(startedAt)) return;
+            function update() {
+              var s = Math.floor((Date.now() - startedAt) / 1000);
+              var h = Math.floor(s / 3600);
+              var m = Math.floor((s % 3600) / 60);
+              var sec = s % 60;
+              el.textContent = '\u23F1 ' + (h ? h + ':' : '') +
+                (h ? String(m).padStart(2,'0') : m) + ':' +
+                String(sec).padStart(2,'0');
+            }
+            update();
+            setInterval(update, 1000);
+          })();
+        </script>
+      {% endif %}
+    </div>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="toast toast--{{ category }}" id="toast-{{ loop.index }}">
+        {{ message }}
+        <button class="toast-close" onclick="this.parentElement.remove()">&#x2715;</button>
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="page-layout">
+    {% if session.get('expert_id') and sidebar_sections and request.endpoint not in ('index',) and (request.endpoint != 'study_complete' or incomplete) %}
+    <nav class="progress-sidebar">
+      <p class="sidebar-heading">Sections</p>
+      {%- set _sec_colors = ['#4A7FA5','#4A9E8E','#6B7BC4','#A06BC4','#4E9E7A','#7A9E4E','#C4836B','#C4A86B','#6B8EC4','#6BC4B8'] -%}
+      {% for s in sidebar_sections %}
+        {% if s.show_group_header %}<p class="sidebar-group-label{% if loop.first %} sidebar-group-label--first{% endif %}">{{ s.group }}</p>{% endif %}
+      <a href="{{ url_for('section_intro', sec_idx=s.sec_idx) }}"
+         class="sidebar-section{% if s.section_complete or s.locked %} sidebar-section--done{% endif %}{% if request.view_args and request.view_args.get('sec_idx') == s.sec_idx %} sidebar-section--active{% endif %}">
+        <span class="sidebar-section-dot" style="background:{{ _sec_colors[s.sec_idx] if s.sec_idx < _sec_colors|length else '#bbb' }}"></span>
+        <span class="sidebar-section-label">{{ s.short_label }}</span>
+        <span class="sidebar-section-badges">
+          {%- set lk -%}<span style="font-size:9px;line-height:1;display:inline-block;vertical-align:middle;">&#128274;</span>{%- endset -%}
+          {% if s.locked %}
+            {% if s.pending_overrides %}
+            <span class="sidebar-badge sidebar-badge--warn" title="Review required">&#9888;</span>
+            {% else %}
+            <span class="sidebar-badge sidebar-badge--lock{% if s.task1_complete %} sidebar-badge--done{% endif %}" title="Locked">{{ lk }}{% if s.task1_complete %} &#10003;{% endif %}</span>
+            {% endif %}
+          {% elif s.task1_locked %}
+            {% if s.pending_overrides %}
+            <span class="sidebar-badge sidebar-badge--warn" title="Review required">&#9888; T1</span>
+            {% else %}
+            <span class="sidebar-badge sidebar-badge--lock{% if s.task1_complete %} sidebar-badge--done{% endif %}" title="Task 1 locked">{{ lk }} T1{% if s.task1_complete %} &#10003;{% endif %}</span>
+            {% endif %}
+            {% if s.task2_locked and s.task2_done == 0 %}
+            {# hidden — T2 not available #}
+            {% elif s.task2_locked %}
+            <span onclick="event.preventDefault();event.stopPropagation();location.href='{{ url_for('task2', sec_idx=s.sec_idx, pair_idx=0) }}';" style="cursor:pointer;"
+               class="sidebar-badge sidebar-badge--lock{% if s.task2_complete %} sidebar-badge--done{% endif %}" title="Task 2 locked — click to review">{{ lk }} T2{% if s.task2_complete %} &#10003;{% endif %}</span>
+            {% else %}
+            <span onclick="event.preventDefault();event.stopPropagation();location.href='{{ url_for('task1_complete', sec_idx=s.sec_idx) }}';"
+               class="sidebar-badge{% if s.task2_complete %} sidebar-badge--done{% endif %}" title="Task 2: {{ s.task2_done }}/{{ s.task2_total }}">
+              T2{% if s.task2_complete %} &#10003;{% endif %}
+            </span>
+            {% endif %}
+          {% else %}
+            <span onclick="event.preventDefault();event.stopPropagation();location.href='{{ url_for('section_intro', sec_idx=s.sec_idx) }}';"
+               class="sidebar-badge{% if s.task1_complete %} sidebar-badge--done{% endif %}" title="Task 1: {{ s.task1_done }}/{{ s.task1_total }}">
+              T1{% if s.task1_complete %} &#10003;{% endif %}
+            </span>
+            {% if s.task2_locked and s.task2_done == 0 %}
+            {# hidden — T2 not available #}
+            {% elif s.task2_locked %}
+            <span onclick="event.preventDefault();event.stopPropagation();location.href='{{ url_for('task2', sec_idx=s.sec_idx, pair_idx=0) }}';" style="cursor:pointer;"
+               class="sidebar-badge sidebar-badge--lock{% if s.task2_complete %} sidebar-badge--done{% endif %}" title="Task 2 locked — click to review">{{ lk }} T2{% if s.task2_complete %} &#10003;{% endif %}</span>
+            {% else %}
+            <span onclick="event.preventDefault();event.stopPropagation();location.href='{{ url_for('task1_complete', sec_idx=s.sec_idx) }}';"
+               class="sidebar-badge{% if s.task2_complete %} sidebar-badge--done{% endif %}" title="Task 2: {{ s.task2_done }}/{{ s.task2_total }}">
+              T2{% if s.task2_complete %} &#10003;{% endif %}
+            </span>
+            {% endif %}
+          {% endif %}
+        </span>
+      </a>
+      {% endfor %}
+      <p class="sidebar-legend">T1 = Task 1 &nbsp;&bull;&nbsp; T2 = Task 2</p>
+    </nav>
+    {% endif %}
+    <main class="main-content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <footer class="site-footer">
+    <p>MOPADI &mdash; User Study</p>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/annotate.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

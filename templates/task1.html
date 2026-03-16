@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Task 1 — Image {{ img_idx + 1 }}/{{ total_images }}{% endblock %}
+
+{% block content %}
+<div class="annotation-page">
+
+  <!-- Total progress bar -->
+  <div class="progress-header progress-header--total">
+    <div class="progress-meta">
+      <span class="progress-label">Overall progress</span>
+      <span class="progress-pct progress-pct--total">{{ overall_pct }}%</span>
+    </div>
+    <div class="progress-bar-outer">
+      <div class="progress-bar-inner progress-bar-inner--total" style="width: {{ overall_pct }}%"></div>
+    </div>
+  </div>
+
+  <!-- Section progress bar -->
+  {% set pct = ((img_idx) / total_images * 100) | int %}
+  <div class="progress-header sec-{{ sec_idx }}">
+    <div class="progress-meta">
+      <span class="progress-label">
+        Section {{ sec_idx + 1 }}/{{ n_sections }} &mdash; {{ sec.short_label }} &mdash; Task 1
+        &mdash; Image {{ img_idx + 1 }}/{{ total_images }}
+      </span>
+      <span class="progress-pct">{{ pct }}%</span>
+    </div>
+    <div class="progress-bar-outer">
+      <div class="progress-bar-inner" style="width: {{ pct }}%"></div>
+    </div>
+  </div>
+
+  <!-- Image display -->
+  <div class="image-container">
+    <div class="image-spinner" id="spinner">Loading&hellip;</div>
+    <img
+      id="patch-image"
+      src="{{ image_url }}"
+      alt="Histopathology patch"
+      onload="document.getElementById('spinner').style.display='none'; this.style.display='block';"
+      onerror="document.getElementById('spinner').textContent='Image failed to load';"
+      style="display:none;"
+    >
+  </div>
+
+  <!-- Override notice -->
+  {% if is_override %}
+  <p class="keyboard-hint" style="color:#e67e22;font-weight:600;">&#9888; Please review and update your answer for this image.</p>
+  {% endif %}
+
+  <!-- Rating form / locked view -->
+  {% if locked %}
+  <p class="keyboard-hint" style="color:#888;">&#128274; Locked — your previous answer is shown above.</p>
+  <div class="rating-buttons">
+    <button class="btn btn-real{% if existing_rating == 'real' %} btn-chosen-real{% endif %}" disabled style="opacity:{% if existing_rating == 'real' %}0.75{% else %}0.35{% endif %};cursor:default;filter:{% if existing_rating != 'real' %}grayscale(80%){% endif %};">
+      Real <span class="key-badge">R</span>
+    </button>
+    <button class="btn btn-synthetic{% if existing_rating == 'synthetic' %} btn-chosen-synthetic{% endif %}" disabled style="opacity:{% if existing_rating == 'synthetic' %}0.75{% else %}0.35{% endif %};cursor:default;filter:{% if existing_rating != 'synthetic' %}grayscale(80%){% endif %};">
+      Synthetic <span class="key-badge">S</span>
+    </button>
+  </div>
+  <div class="task1-back-row" style="display:flex;gap:0.75rem;justify-content:center;margin-top:1rem;">
+    {% if img_idx > 0 %}
+      <a href="{{ url_for('task1', sec_idx=sec_idx, img_idx=img_idx - 1) }}" class="btn btn-secondary">&larr; Back</a>
+    {% else %}
+      <a href="{{ url_for('section_intro', sec_idx=sec_idx) }}" class="btn btn-secondary">&larr; Back</a>
+    {% endif %}
+    {% if img_idx + 1 < total_images %}
+      <a href="{{ url_for('task1', sec_idx=sec_idx, img_idx=img_idx + 1) }}" class="btn btn-primary">Next &rarr;</a>
+    {% else %}
+      <a href="{{ url_for('task1_complete', sec_idx=sec_idx) }}" class="btn btn-primary">Next &rarr;</a>
+    {% endif %}
+  </div>
+  {% else %}
+  <form method="POST" action="{{ url_for('task1', sec_idx=sec_idx, img_idx=img_idx) }}" id="rating-form">
+    <input type="hidden" name="rating" id="rating-value">
+    <div class="rating-buttons">
+      <button type="submit" name="rating" value="real"
+              class="btn btn-real{% if existing_rating == 'real' %} btn-chosen-real{% endif %}" id="btn-real">
+        Real <span class="key-badge">R</span>
+      </button>
+      <button type="submit" name="rating" value="synthetic"
+              class="btn btn-synthetic{% if existing_rating == 'synthetic' %} btn-chosen-synthetic{% endif %}" id="btn-synthetic">
+        Synthetic <span class="key-badge">S</span>
+      </button>
+    </div>
+    <p class="keyboard-hint">Press <kbd>R</kbd> or <kbd>S</kbd></p>
+    <div class="task1-back-row">
+      {% if img_idx > 0 %}
+        <a href="{{ url_for('task1', sec_idx=sec_idx, img_idx=img_idx - 1) }}"
+           class="btn btn-secondary">&larr; Back</a>
+      {% else %}
+        <a href="{{ url_for('section_intro', sec_idx=sec_idx) }}"
+           class="btn btn-secondary">&larr; Back</a>
+      {% endif %}
+    </div>
+  </form>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  @keyframes btn-flash {
+    0%   { transform: scale(1);    opacity: 1; }
+    40%  { transform: scale(1.05); opacity: 1; }
+    100% { transform: scale(1);    opacity: 0.85; }
+  }
+  .btn-chosen-real      { background: #22c55e !important; color: #fff !important; animation: btn-flash 0.35s ease forwards; }
+  .btn-chosen-synthetic { background: #ef4444 !important; color: #fff !important; animation: btn-flash 0.35s ease forwards; }
+</style>
+<script>
+  {% if not locked %}
+  function chooseRating(btn, cls, value) {
+    btn.classList.add(cls);
+    document.getElementById('rating-value').value = value;
+    setTimeout(function() {
+      document.querySelector('.annotation-page').style.opacity = '0';
+      document.querySelector('.annotation-page').style.transition = 'opacity 0.1s ease';
+      setTimeout(function() {
+        document.getElementById('rating-form').submit();
+      }, 100);
+    }, 200);
+  }
+
+  document.getElementById('btn-real').addEventListener('click', function(e) {
+    e.preventDefault();
+    chooseRating(this, 'btn-chosen-real', 'real');
+  });
+  document.getElementById('btn-synthetic').addEventListener('click', function(e) {
+    e.preventDefault();
+    chooseRating(this, 'btn-chosen-synthetic', 'synthetic');
+  });
+
+  // Keyboard shortcuts for Task 1
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'r' || e.key === 'R') {
+      document.getElementById('btn-real').click();
+    } else if (e.key === 's' || e.key === 'S') {
+      document.getElementById('btn-synthetic').click();
+    }
+  });
+  {% endif %}
+
+  // Preload next image into browser cache
+  {% if next_image_url %}
+  (new Image()).src = "{{ next_image_url }}";
+  {% endif %}
+</script>
+{% endblock %}

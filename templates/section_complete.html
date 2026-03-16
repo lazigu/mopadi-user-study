@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Section {{ sec_idx + 1 }} Complete{% endblock %}
+
+{% block content %}
+<div class="card card-center animate-in">
+  <svg class="check-svg" viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">
+    <circle class="check-circle" cx="26" cy="26" r="24"/>
+    <path class="check-path" d="M14 27 l8 8 l16-16"/>
+  </svg>
+  <h2>Section {{ sec_idx + 1 }} Complete</h2>
+  <p><strong>{{ sec.label }}</strong></p>
+
+  {% if has_next %}
+    <p>{{ remaining_sections | length }} section(s) remaining:</p>
+    <ul class="remaining-list">
+      {% for s in remaining_sections %}
+        <li>Section {{ s.idx + 1 }}: {{ s.label }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>You have completed all sections!</p>
+  {% endif %}
+
+  <div style="display:flex; gap:12px; justify-content:center; margin-top:1rem; flex-wrap:wrap;">
+    <a href="{{ url_for('task2', sec_idx=sec_idx, pair_idx=0) }}" class="btn btn-secondary">
+      &larr; Back to Section {{ sec_idx + 1 }}
+    </a>
+    {% if has_next %}
+    <a href="{{ url_for('section_intro', sec_idx=next_sec_idx) }}" class="btn btn-primary btn-large">
+      Continue to Section {{ next_sec_idx + 1 }} &rarr;
+    </a>
+    {% else %}
+    <a href="{{ url_for('study_complete') }}" class="btn btn-primary btn-large">
+      View Summary &rarr;
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

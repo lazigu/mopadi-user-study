@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Task 2 — Pair {{ pair_idx + 1 }}/{{ n_pairs }}{% endblock %}
+
+{% block content %}
+<div class="annotation-page annotation-page--task2">
+
+  <!-- Total progress bar -->
+  <div class="progress-header progress-header--total">
+    <div class="progress-meta">
+      <span class="progress-label">Overall progress</span>
+      <span class="progress-pct progress-pct--total">{{ overall_pct }}%</span>
+    </div>
+    <div class="progress-bar-outer">
+      <div class="progress-bar-inner progress-bar-inner--total" style="width: {{ overall_pct }}%"></div>
+    </div>
+  </div>
+
+  <!-- Section progress bar -->
+  {% set pct = (pair_idx / n_pairs * 100) | int %}
+  <div class="progress-header sec-{{ sec_idx }}">
+    <div class="progress-meta">
+      <span class="progress-label">
+        Section {{ sec_idx + 1 }}/{{ n_sections }} &mdash; {{ sec.short_label }} &mdash; Task 2
+        &mdash; Transition {{ pair_idx + 1 }}/{{ n_pairs }}
+      </span>
+      <span class="progress-pct">{{ pct }}%</span>
+    </div>
+    <div class="progress-bar-outer">
+      <div class="progress-bar-inner" style="width: {{ pct }}%"></div>
+    </div>
+  </div>
+
+  {% set n_imgs = group | length %}
+  {% set last = n_imgs - 1 %}
+
+  <form method="POST"
+        action="{{ url_for('task2', sec_idx=sec_idx, pair_idx=pair_idx) }}"
+        id="morph-form"
+        class="task2-matrix-form">
+
+    <!-- All images in one row -->
+    <div class="task2-images task2-images--row">
+      {% for i in range(n_imgs) %}
+        <div class="task2-img-col {% if i == 0 %}task2-img-annotate task2-img-col--row1{% elif i == last %}task2-img-annotate task2-img-col--row2{% else %}task2-img-context{% endif %}">
+          <div class="image-container task2-img-fixed">
+            <div class="image-spinner" id="spinner-{{ i }}">Loading&hellip;</div>
+            <img src="{{ group_urls[i] }}" alt="Image {{ i + 1 }}"
+                 onload="document.getElementById('spinner-{{ i }}').style.display='none'; this.style.display='block';"
+                 onerror="document.getElementById('spinner-{{ i }}').textContent='Image failed to load';"
+                 style="display:none;">
+          </div>
+          {% if i == 0 %}
+            <p class="task2-img-label task2-img-label--annotate task2-img-label--row1">&#9632; Row 1</p>
+          {% elif i == last %}
+            <p class="task2-img-label task2-img-label--annotate task2-img-label--row2">&#9632; Row 2</p>
+          {% else %}
+            <p class="task2-img-label task2-img-label--context">intermediate</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Feature matrix — only leftmost (0) and rightmost (last) rows -->
+    <div class="task2-table-wrap">
+      <p class="feature-hint">Select all morphological features visible in each image.</p>
+      <p class="feature-hint">If there were no observable morphological changes between the left and right images, please select the same features for both. Ignore any staining change.</p>
+      <table class="feature-matrix">
+        <thead>
+          <tr>
+            <th class="feat-row-header"></th>
+            {% for key, label in features %}
+              <th class="feat-col-header" title="{{ label }}">
+                <span class="feat-col-label">{{ label }}</span>
+              </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row_i in [0, last] %}
+            {% set ex = existing[row_i] %}
+            {% set ex_feats = ex.features if ex else [] %}
+            <tr>
+              <td class="feat-row-header {% if row_i == 0 %}feat-row-header--row1{% else %}feat-row-header--row2{% endif %}">{% if row_i == 0 %}Row 1{% else %}Row 2{% endif %}</td>
+              {% for key, label in features %}
+                <td class="feat-cell">
+                  <input type="checkbox"
+                         name="features_{{ row_i }}"
+                         value="{{ key }}"
+                         {% if key in ex_feats %}checked{% endif %}
+                         {% if locked %}disabled{% endif %}
+                         {% if key == 'other' and not locked %}onchange="toggleOther({{ row_i }}, this)"{% endif %}>
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% for row_i in [0, last] %}
+        {% set ex = existing[row_i] %}
+        {% set ex_feats = ex.features if ex else [] %}
+        <div id="other-wrap-{{ row_i }}"
+             class="other-text-wrap"
+             style="display:{% if ex and 'other' in ex_feats %}block{% else %}none{% endif %}">
+          <label>Other &mdash; {% if row_i == 0 %}Row 1{% else %}Row 2{% endif %}:
+            <textarea name="other_text_{{ row_i }}" rows="2"
+                      placeholder="Describe the feature&hellip;"
+                      {% if locked %}readonly{% endif %}>{{ ex.other_text if ex else '' }}</textarea>
+          </label>
+        </div>
+      {% endfor %}
+    </div>
+
+    {% if locked %}
+    <p style="color:#888;font-size:0.95rem;text-align:center;margin-bottom:0.5rem;">&#128274; Locked — your previous answers are shown above.</p>
+    {% endif %}
+    <div class="task2-submit-row">
+      {% if pair_idx > 0 %}
+        <a href="{{ url_for('task2', sec_idx=sec_idx, pair_idx=pair_idx - 1) }}"
+           class="btn btn-secondary">&larr; Back</a>
+      {% else %}
+        <a href="{{ url_for('task1_complete', sec_idx=sec_idx) }}"
+           class="btn btn-secondary">&larr; Back</a>
+      {% endif %}
+      {% if locked %}
+        {% if pair_idx + 1 < n_pairs %}
+          <a href="{{ url_for('task2', sec_idx=sec_idx, pair_idx=pair_idx + 1) }}" class="btn btn-primary btn-large">Next &rarr;</a>
+        {% else %}
+          <a href="{{ url_for('section_complete', sec_idx=sec_idx) }}" class="btn btn-primary btn-large">Next &rarr;</a>
+        {% endif %}
+      {% else %}
+      <button type="submit" class="btn btn-primary btn-large">
+        Save &amp; Continue &rarr;
+      </button>
+      {% endif %}
+    </div>
+
+  </form>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function toggleOther(i, cb) {
+    document.getElementById('other-wrap-' + i).style.display = cb.checked ? 'block' : 'none';
+  }
+</script>
+{% endblock %}

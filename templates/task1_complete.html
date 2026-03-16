@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Task 1 Complete — {{ sec.short_label }}{% endblock %}
+
+{% block content %}
+<div class="card card-center">
+  <div class="check-icon">&#10003;</div>
+  <h2>Task 1 Complete</h2>
+  <p>You have rated all <strong>{{ n_images }} images</strong> in
+     <strong>{{ sec.label }}</strong>.</p>
+
+  <div class="info-box">
+    <p><strong>Task 2: Morphological Features</strong></p>
+    {% if task2_locked %}
+    <p>Task 2 is not available for this section.</p>
+    {% else %}
+    <p>You will now review <strong>{{ n_pairs }} transitions</strong> and select which
+       morphological features are visible in the original and counterfactual images.</p>
+    {% endif %}
+  </div>
+
+  {% if task2_locked %}
+  {% if sec_idx + 1 < n_sections %}
+  <a href="{{ url_for('section_intro', sec_idx=sec_idx + 1) }}" class="btn btn-primary btn-large">
+    Next Section &rarr;
+  </a>
+  {% else %}
+  <a href="{{ url_for('study_complete') }}" class="btn btn-primary btn-large">
+    Finish Study &rarr;
+  </a>
+  {% endif %}
+  {% else %}
+  <a href="{{ url_for('task2', sec_idx=sec_idx, pair_idx=0) }}" class="btn btn-primary btn-large">
+    Start Task 2 &rarr;
+  </a>
+  {% endif %}
+</div>
+{% endblock %}

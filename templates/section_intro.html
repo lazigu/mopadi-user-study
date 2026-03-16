@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Section {{ sec_idx + 1 }} — {{ sec.short_label }}{% endblock %}
+
+{% block content %}
+<div class="card card-center">
+  <p class="section-counter">Section {{ sec_idx + 1 }} of {{ n_sections }}</p>
+  <h2>{{ sec.label }}</h2>
+  <p class="description">{{ sec.description }}</p>
+
+  <div class="info-box">
+    <p><strong>Task 1:</strong> Rate <strong>{{ n_task1 }} images</strong> as Real or Synthetic.</p>
+    <p><strong>Task 2:</strong> Annotate morphological features for <strong>{{ n_pairs }} transitions</strong>.</p>
+  </div>
+
+  {% if pending_overrides %}
+  <p style="color:#e67e22;font-size:0.95rem;margin:0.75rem 0;font-weight:600;">&#9888; One or more images need your review — please go through Task 1 and update the flagged answer(s).</p>
+  {% elif locked %}
+  <p style="color:#888;font-size:0.95rem;margin:0.75rem 0;">&#128274; This section was already completed — your answers are locked and shown for review only.</p>
+  {% elif task1_locked %}
+  <p style="color:#888;font-size:0.95rem;margin:0.75rem 0;">&#128274; Task 1 answers have been imported from the previous user study setup — you can review them below.</p>
+  {% endif %}
+
+  <a href="{{ url_for('task1', sec_idx=sec_idx, img_idx=resume_img_idx) }}"
+     class="btn btn-primary btn-large{% if locked or task1_locked %} btn-locked{% endif %}"
+     {% if locked or task1_locked %}style="opacity:0.55;filter:grayscale(40%);"{% endif %}>
+    {% if locked or task1_locked %}Review Task 1{% elif resume_img_idx > 0 %}Continue Task 1 &rarr;{% elif task1_complete %}Review Task 1{% else %}Start Task 1 &rarr;{% endif %}
+  </a>
+
+  {% if task1_locked and not task2_locked and not locked %}
+  <a href="{{ url_for('task1_complete', sec_idx=sec_idx) }}" class="btn btn-primary btn-large" style="margin-top:0.75rem;">
+    Skip to Task 2 &rarr;
+  </a>
+  {% endif %}
+
+  {% if task2_locked and not locked and task2_done > 0 %}
+  <a href="{{ url_for('task2', sec_idx=sec_idx, pair_idx=0) }}" class="btn btn-secondary btn-large" style="margin-top:0.75rem;">
+    &#128274; Review Task 2
+  </a>
+  {% endif %}
+
+  {% if not locked and not task1_locked %}
+  <form method="post" action="{{ url_for('skip_section', sec_idx=sec_idx) }}" style="margin-top:1rem;">
+    <button type="submit" class="btn btn-secondary" onclick="return confirm('Skip this section entirely?')">
+      Skip section
+    </button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
