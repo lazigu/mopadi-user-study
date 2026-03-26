@@ -18,6 +18,7 @@ Routes:
 import io
 import json
 import os
+import urllib.request
 import zipfile
 from datetime import datetime, timezone
 from functools import wraps
@@ -106,6 +107,17 @@ def save_results(expert_id, data):
 
 def utcnow():
     return datetime.now(timezone.utc).isoformat()
+
+
+def _proxy_hf(hf_url):
+    """Fetch an image from HuggingFace and stream it back as same-origin response."""
+    try:
+        req = urllib.request.Request(hf_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = resp.read()
+        return send_file(io.BytesIO(data), mimetype="image/png")
+    except Exception:
+        return "Image not found", 404
 
 
 def ensure_section(results, sec_idx):
@@ -585,7 +597,7 @@ def task2(sec_idx, pair_idx):
 
     # GET
     group_urls = [
-        img.get("hf_url") or url_for("proxy_image", img_id=img["img_id"])
+        url_for("proxy_image", img_id=img["img_id"])
         for img in group
     ]
 
@@ -752,13 +764,12 @@ def task1_image(sec_idx, img_idx):
     if img_idx < 0 or img_idx >= len(task1_order):
         return "Not found", 404
     img = images[task1_order[img_idx]]
-    # Prefer local path for serving (avoids leaking HF filename in redirect)
     local_path = img.get("local_path")
     if local_path and os.path.exists(local_path):
         return send_file(local_path, mimetype="image/png")
     hf_url = img.get("hf_url")
     if hf_url:
-        return redirect(hf_url)
+        return _proxy_hf(hf_url)
     return "Image not found", 404
 
 
@@ -770,9 +781,12 @@ def proxy_image(img_id):
     if img is None:
         return "Image not found", 404
     local_path = img.get("local_path")
-    if not local_path or not os.path.exists(local_path):
-        return "Local image file not found", 404
-    return send_file(local_path, mimetype="image/png")
+    if local_path and os.path.exists(local_path):
+        return send_file(local_path, mimetype="image/png")
+    hf_url = img.get("hf_url")
+    if hf_url:
+        return _proxy_hf(hf_url)
+    return "Image not found", 404
 
 
 if __name__ == "__main__":
